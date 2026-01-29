@@ -161,51 +161,55 @@ if ($selectedId) {
 
         <?php if ($selectedId && !$error): ?>
 
-            <!-- Generate sql -->
-            <div class="mt-6 flex gap-4">
-
-            <?php if (count($missingInFrom) > 0): ?>
-                <a href="create_missing_tables.php?pair_id=<?= $selectedId ?>&direction=to_from"
-                class="rounded-xl bg-purple-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-purple-500 transition shadow-sm">
-                Generate SQL for missing tables in <?= htmlspecialchars($pair['db_from_name']) ?>
-                </a>
-            <?php endif; ?>
-
-            <?php if (count($missingInTo) > 0): ?>
-                <a href="create_missing_tables.php?pair_id=<?= $selectedId ?>&direction=from_to"
-                class="rounded-xl bg-green-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-green-500 transition shadow-sm">
-                Generate SQL: 
-                Generate SQL for missing tables in <?= htmlspecialchars($pair['db_to_name']) ?>
-                </a>
-            <?php endif; ?>
-            </div>
-
             <!-- Summary Cards -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                <!-- Tables in Both -->
                 <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
                     <div class="text-sm text-slate-700">Tables in Both</div>
                     <div class="text-2xl font-semibold mt-1"><?= count($commonTables) ?></div>
                 </div>
 
-                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-                    <div class="text-sm text-slate-700">
-                        Missing in DB From
-                        <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-medium">
-                            <?= htmlspecialchars($pair['db_from_name']) ?>
-                        </span>
+                <!-- Missing in FROM -->
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="text-sm text-slate-700">
+                            Missing in DB From
+                            <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-medium">
+                                <?= htmlspecialchars($pair['db_from_name']) ?>
+                            </span>
+                        </div>
+                        <div class="text-2xl font-semibold mt-1"><?= count($missingInFrom) ?></div>
                     </div>
-                    <div class="text-2xl font-semibold mt-1"><?= count($missingInFrom) ?></div>
+
+                    <?php if (count($missingInFrom) > 0): ?>
+                        <a href="create_missing_tables.php?pair_id=<?= $selectedId ?>&direction=to_from"
+                        class="mt-4 inline-block rounded-xl bg-purple-600 px-3 py-1 text-xs font-medium text-white hover:bg-purple-500 transition">
+                            Generate SQL for missing tables in <?= htmlspecialchars($pair['db_from_name']) ?>
+                        </a>
+                    <?php endif; ?>
                 </div>
 
-                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-                    <div class="text-sm text-slate-700">
-                        Missing in DB To
-                        <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-medium">
-                            <?= htmlspecialchars($pair['db_to_name']) ?>
-                        </span>
+                <!-- Missing in TO -->
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="text-sm text-slate-700">
+                            Missing in DB To
+                            <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-medium">
+                                <?= htmlspecialchars($pair['db_to_name']) ?>
+                            </span>
+                        </div>
+                        <div class="text-2xl font-semibold mt-1"><?= count($missingInTo) ?></div>
                     </div>
-                    <div class="text-2xl font-semibold mt-1"><?= count($missingInTo) ?></div>
+
+                    <?php if (count($missingInTo) > 0): ?>
+                        <a href="create_missing_tables.php?pair_id=<?= $selectedId ?>&direction=from_to"
+                        class="mt-4 inline-block rounded-xl bg-green-600 px-3 py-1 text-xs font-medium text-white hover:bg-green-500 transition">
+                            Generate SQL for missing tables in <?= htmlspecialchars($pair['db_to_name']) ?>
+                        </a>
+                    <?php endif; ?>
                 </div>
+
             </div>
 
             <!-- Results -->

@@ -60,7 +60,15 @@ if ($selectedId) {
 
                 // Prepend comment describing the command
                 if ($sql) {
-                    $sql = "-- Command to create missing table `$table` in `$toDb`\n" . $sql . ";";
+
+                    $sql = preg_replace(
+                        '/^CREATE TABLE\s+`?(\w+)`?/i', 
+                        "CREATE TABLE `{$toDb}`.`$1`", 
+                        $sql
+                    );
+                    $sql = "-- Command to create missing table `$table`\n"
+                        . "-- From database: `{$fromDb}` → To database: `{$toDb}`\n"
+                        . $sql . ";";
                 }
 
                 $sqlCommands[$table] = $sql;

@@ -55,7 +55,7 @@ try {
             ':db_to_pass' => $_POST['db_to_pass'] ?? null,
         ]);
 
-        header("Location: index.php");
+        header("Location: index.php?success=added");
         exit;
     }
 
@@ -64,9 +64,31 @@ try {
         $stmt = $conn->prepare("DELETE FROM db_connections WHERE id = ?");
         $stmt->execute([(int) $_GET['delete_id']]);
 
-        header("Location: index.php");
+        header("Location: index.php?success=deleted");
         exit;
     }
+
+// Return messages for toast
+$toastMessage = null;
+$toastType = 'success';
+
+if (isset($_GET['success'])) {
+    switch ($_GET['success']) {
+        case 'added':
+            $toastMessage = "Database connection added successfully!";
+            $toastType = 'success';
+            break;
+        case 'deleted':
+            $toastMessage = "Database connection deleted successfully!";
+            $toastType = 'success';
+            break;
+        case 'error':
+            $toastMessage = $_GET['msg'] ?? "An error occurred!";
+            $toastType = 'error';
+            break;
+    }
+}
+
 
 // FETCH CONNECTIONS
 $result = $conn->query("SELECT * FROM db_connections ORDER BY id DESC");
@@ -83,6 +105,10 @@ $result = $conn->query("SELECT * FROM db_connections ORDER BY id DESC");
 </head>
 <body class="bg-gray-300 text-slate-800">
 
+    <!-- Toast container -->
+    <div id="toast-container" class="fixed top-5 right-5 space-y-2 z-50"></div>
+
+
     <!-- Top Header -->
     <div class="bg-white border-b border-slate-200">
         <div class="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
@@ -92,7 +118,7 @@ $result = $conn->query("SELECT * FROM db_connections ORDER BY id DESC");
             </div>
 
             <a href="table_comparison.php"
-               class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 transition">
+               class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 transition">
                 Go to Table Comparison →
             </a>
         </div>
@@ -102,11 +128,20 @@ $result = $conn->query("SELECT * FROM db_connections ORDER BY id DESC");
 
         <!-- Add Connection Form -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-200">
-                <h2 class="text-lg font-semibold">Add Database Connection</h2>
-                <p class="text-sm text-slate-500">
-                    Save a pair of databases you want to compare.
-                </p>
+            <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold">Add Database Connection</h2>
+                    <p class="text-sm text-slate-500">
+                        Save a pair of databases you want to compare.
+                    </p>
+                </div>
+
+                <!-- Submit button moved here -->
+                <button type="submit" name="add_connection"
+                    form="add-connection-form"
+                    class="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-slate-800 transition shadow-sm">
+                    + Add Connection
+                </button>
             </div>
 
             <form method="POST" class="p-6 space-y-6">
@@ -196,14 +231,6 @@ $result = $conn->query("SELECT * FROM db_connections ORDER BY id DESC");
                         </div>
                     </div>
                 </div>
-
-                <!-- Submit -->
-                <div class="flex items-center justify-end gap-3">
-                    <button type="submit" name="add_connection"
-                        class="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-slate-800 transition shadow-sm">
-                        + Add Connection
-                    </button>
-                </div>
             </form>
         </div>
 
@@ -267,6 +294,26 @@ $result = $conn->query("SELECT * FROM db_connections ORDER BY id DESC");
         </div>
 
     </div>
+
+<script>
+    function showToast(message, type='success', duration=2000) {
+        const toast = document.createElement('div');
+        toast.className = `px-4 py-2 rounded shadow text-white 
+            ${type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600'}`;
+        toast.innerText = message;
+
+        const container = document.getElementById('toast-container');
+        container.appendChild(toast);
+
+        setTimeout(() => toast.remove(), duration);
+    }
+
+    // Show toast if PHP passed a message
+    <?php if ($toastMessage): ?>
+        showToast(<?= json_encode($toastMessage) ?>, <?= json_encode($toastType) ?>, 3000);
+    <?php endif; ?>
+</script>
+
 
 </body>
 </html>

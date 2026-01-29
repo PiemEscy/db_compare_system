@@ -221,6 +221,22 @@ foreach($comparison as $col => $cols) {
 
 $sqlToFrom = generateAlterSQL($comparisonRev, $table, $pair['db_to_name'], $pair['db_from_name'], $pkTo, $pkFrom, $uniqueTo, $uniqueFrom, $fkTo, $fkFrom);
 
+function hasRealSql($sql) {
+    // remove empty lines
+    $lines = array_filter(array_map('trim', explode("\n", $sql)));
+
+    // remove comment-only lines (starting with --)
+    $lines = array_filter($lines, function($line){
+        return $line !== '' && strpos($line, '--') !== 0;
+    });
+
+    // if remaining lines exist, we have real SQL
+    return count($lines) > 0;
+}
+
+$hasSqlFromTo = hasRealSql($sqlFromTo);
+$hasSqlToFrom = hasRealSql($sqlToFrom);
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -264,13 +280,17 @@ $sqlToFrom = generateAlterSQL($comparisonRev, $table, $pair['db_to_name'], $pair
                     <i class="fas fa-arrow-right text-green-500"></i> SQL: From → To (<?= $pair['db_from_name'] ?> → <?= $pair['db_to_name'] ?>)
                 </h2>
                 <div class="flex gap-2">
-                    <button class="copy-btn text-xs text-slate-700 hover:text-slate-900" data-target="sqlFromTo">
-                        <i class="fas fa-copy"></i> Copy
-                    </button>
-                    <button class="run-btn text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-500"
-                        data-direction="from_to" data-target="sqlFromTo">
-                        Run
-                    </button>
+                    <?php if($hasSqlFromTo): ?>
+                        <button class="copy-btn text-xs text-slate-700 hover:text-slate-900" data-target="sqlFromTo">
+                            <i class="fas fa-copy"></i> Copy
+                        </button>
+                        <button class="run-btn text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-500"
+                            data-direction="from_to" data-target="sqlFromTo">
+                            Run
+                        </button>
+                    <?php else: ?>
+                        <span class="text-xs text-slate-400 italic">No changes</span>
+                    <?php endif; ?>
                 </div>
             </div>
             <pre id="sqlFromTo" class="text-xs font-mono bg-slate-100 p-2 rounded max-h-72 overflow-auto"><?= htmlspecialchars($sqlFromTo) ?></pre>
@@ -283,13 +303,17 @@ $sqlToFrom = generateAlterSQL($comparisonRev, $table, $pair['db_to_name'], $pair
                     <i class="fas fa-arrow-left text-purple-500"></i> SQL: To → From (<?= $pair['db_to_name'] ?> → <?= $pair['db_from_name'] ?>)
                 </h2>
                 <div class="flex gap-2">
-                    <button class="copy-btn text-xs text-slate-700 hover:text-slate-900" data-target="sqlToFrom">
-                        <i class="fas fa-copy"></i> Copy
-                    </button>
-                    <button class="run-btn text-xs bg-purple-600 text-white px-2 py-1 rounded hover:bg-purple-500"
-                        data-direction="to_from" data-target="sqlToFrom">
-                        Run
-                    </button>
+                    <?php if($hasSqlToFrom): ?>
+                        <button class="copy-btn text-xs text-slate-700 hover:text-slate-900" data-target="sqlToFrom">
+                            <i class="fas fa-copy"></i> Copy
+                        </button>
+                        <button class="run-btn text-xs bg-purple-600 text-white px-2 py-1 rounded hover:bg-purple-500"
+                            data-direction="to_from" data-target="sqlToFrom">
+                            Run
+                        </button>
+                    <?php else: ?>
+                        <span class="text-xs text-slate-400 italic">No changes</span>
+                    <?php endif; ?>
                 </div>
             </div>
             <pre id="sqlToFrom" class="text-xs font-mono bg-slate-100 p-2 rounded max-h-72 overflow-auto"><?= htmlspecialchars($sqlToFrom) ?></pre>
