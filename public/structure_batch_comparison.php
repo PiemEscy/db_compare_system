@@ -221,27 +221,32 @@ foreach ($tables as $table) {
         }
     }
 
+    $fkFromCols = [];
+    foreach ($fkFrom as $fkArr) {
+        foreach ($fkArr as $fk) {
+            $fkFromCols[$fk['column']][] = $fk['ref_table'].'('.$fk['ref_column'].')';
+        }
+    }
+
+    $fkToCols = [];
+    foreach ($fkTo as $fkArr) {
+        foreach ($fkArr as $fk) {
+            $fkToCols[$fk['column']][] = $fk['ref_table'].'('.$fk['ref_column'].')';
+        }
+    }
+
+    // Compare FK lists per column
+    $allColumns = array_unique(array_merge(array_keys($fkFromCols), array_keys($fkToCols)));
+
     $fkChanges = 0;
-    $allFkNames = array_unique(array_merge(array_keys($fkFrom), array_keys($fkTo)));
-
-    $fkFromSig = [];
-    foreach ($fkFrom as $name => $fkCols) $fkFromSig[$name] = normalizeFkSignature($fkCols);
-
-    $fkToSig = [];
-    foreach ($fkTo as $name => $fkCols) $fkToSig[$name] = normalizeFkSignature($fkCols);
-
-    foreach ($allFkNames as $fkName) {
-        $from = $fkFromSig[$fkName] ?? null;
-        $to = $fkToSig[$fkName] ?? null;
-
-        if (!$from || !$to) {
-            $fkChanges++;
-            continue;
-        }
-
-        if ($from !== $to) {
-            $fkChanges++;
-        }
+    foreach ($allColumns as $col) {
+        $fromList = $fkFromCols[$col] ?? [];
+        $toList   = $fkToCols[$col] ?? [];
+        
+        sort($fromList);
+        sort($toList);
+        
+        if ($fromList !== $toList) $fkChanges++;
     }
 
     $isDifferent = ($columnChanges > 0) || ($pkChanges > 0) || ($uniqueChanges > 0) || ($fkChanges > 0);
@@ -476,17 +481,32 @@ foreach ($batch as $row) {
                                     foreach($uniqueTo as $colsArr) $uniqueToCols = array_merge($uniqueToCols, $colsArr);
                                     if (in_array($colName, $uniqueFromCols) xor in_array($colName, $uniqueToCols)) $diff = true;
 
-                                    $fkFromCols = [];
-                                    foreach($fkFrom as $fkArr) foreach($fkArr as $fk) $fkFromCols[$fk['column']] = $fk['ref_table'].'('.$fk['ref_column'].')';
-                                    $fkToCols = [];
-                                    foreach($fkTo as $fkArr) foreach($fkArr as $fk) $fkToCols[$fk['column']] = $fk['ref_table'].'('.$fk['ref_column'].')';
-                                    if (
-                                        (isset($fkFromCols[$colName]) && !isset($fkToCols[$colName])) ||
-                                        (!isset($fkFromCols[$colName]) && isset($fkToCols[$colName])) ||
-                                        (isset($fkFromCols[$colName], $fkToCols[$colName]) && $fkFromCols[$colName] != $fkToCols[$colName])
-                                    ) {
-                                        $diff = true;
+                                // Check FK differences (includes FK count + FK reference differences)
+                                $fkFromCols = [];
+                                foreach ($fkFrom as $fkArr) {
+                                    foreach ($fkArr as $fk) {
+                                        $fkFromCols[$fk['column']][] = $fk['ref_table'] . '(' . $fk['ref_column'] . ')';
                                     }
+                                }
+
+                                $fkToCols = [];
+                                foreach ($fkTo as $fkArr) {
+                                    foreach ($fkArr as $fk) {
+                                        $fkToCols[$fk['column']][] = $fk['ref_table'] . '(' . $fk['ref_column'] . ')';
+                                    }
+                                }
+
+                                $fromFkList = $fkFromCols[$colName] ?? [];
+                                $toFkList   = $fkToCols[$colName] ?? [];
+
+                                sort($fromFkList);
+                                sort($toFkList);
+
+                                // ✅ detects FK missing, FK changed, OR FK count difference
+                                if ($fromFkList !== $toFkList) {
+                                    $diff = true;
+                                }
+
                                 }
                             ?>
 

@@ -175,13 +175,13 @@ if ($selectedId) {
                     <a target="_blank"
                     href="document_commands.php?pair_id=<?= $selectedId ?>&direction=to_from"
                     class="rounded-xl bg-purple-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-purple-500 transition shadow-sm">
-                        🧾 Document (<?= $pair['db_to_name'].' → '.$pair['db_from_name']?>)
+                         Document Sync Process (<?= $pair['db_to_name'].' → '.$pair['db_from_name']?>)
                     </a>
 
                     <a target="_blank"
                     href="document_commands.php?pair_id=<?= $selectedId ?>&direction=from_to"
                     class="rounded-xl bg-green-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-green-500 transition shadow-sm">
-                        🧾 Document (<?= $pair['db_from_name'].' → '.$pair['db_to_name']?>)
+                         Document Sync Process (<?= $pair['db_from_name'].' → '.$pair['db_to_name']?>)
                     </a>
                 </div>
             </div>

@@ -470,19 +470,48 @@ $hasSqlToFrom = hasRealSql($sqlToFrom);
 
                             // Check UNIQUE differences
                             $uniqueFromCols = [];
-                            foreach($uniqueFrom as $colsArr) $uniqueFromCols = array_merge($uniqueFromCols, $colsArr);
-                            $uniqueToCols = [];
-                            foreach($uniqueTo as $colsArr) $uniqueToCols = array_merge($uniqueToCols, $colsArr);
-                            if (in_array($colName, $uniqueFromCols) xor in_array($colName, $uniqueToCols)) $diff = true;
+                            foreach ($uniqueFrom as $colsArr) {
+                                $uniqueFromCols = array_merge($uniqueFromCols, $colsArr);
+                            }
 
-                            // Check FK differences
-                            $fkFromCols = [];
-                            foreach($fkFrom as $fkArr) foreach($fkArr as $fk) $fkFromCols[$fk['column']] = $fk['ref_table'].'('.$fk['ref_column'].')';
-                            $fkToCols = [];
-                            foreach($fkTo as $fkArr) foreach($fkArr as $fk) $fkToCols[$fk['column']] = $fk['ref_table'].'('.$fk['ref_column'].')';
-                            if ((isset($fkFromCols[$colName]) && !isset($fkToCols[$colName])) || (!isset($fkFromCols[$colName]) && isset($fkToCols[$colName])) || (isset($fkFromCols[$colName], $fkToCols[$colName]) && $fkFromCols[$colName] != $fkToCols[$colName])) {
+                            $uniqueToCols = [];
+                            foreach ($uniqueTo as $colsArr) {
+                                $uniqueToCols = array_merge($uniqueToCols, $colsArr);
+                            }
+
+                            if (in_array($colName, $uniqueFromCols) xor in_array($colName, $uniqueToCols)) {
                                 $diff = true;
                             }
+
+                            // Check FK differences (supports multiple FK per column + count check)
+                            $fkFromCols = [];
+                            foreach ($fkFrom as $fkArr) {
+                                foreach ($fkArr as $fk) {
+                                    $fkFromCols[$fk['column']][] = $fk['ref_table'] . '(' . $fk['ref_column'] . ')';
+                                }
+                            }
+
+                            $fkToCols = [];
+                            foreach ($fkTo as $fkArr) {
+                                foreach ($fkArr as $fk) {
+                                    $fkToCols[$fk['column']][] = $fk['ref_table'] . '(' . $fk['ref_column'] . ')';
+                                }
+                            }
+
+                            $fromFkList = $fkFromCols[$colName] ?? [];
+                            $toFkList   = $fkToCols[$colName] ?? [];
+
+                            sort($fromFkList);
+                            sort($toFkList);
+
+                            // If FK count OR FK reference differs → mark as diff
+                            if ($fromFkList !== $toFkList) {
+                                $diff = true;
+                            }
+
+                            // (optional) FK count values if you want to display them later:
+                            // $fkCountFrom = count($fromFkList);
+                            // $fkCountTo   = count($toFkList);
                         }
                     ?>
 
