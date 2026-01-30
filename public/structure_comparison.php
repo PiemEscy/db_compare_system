@@ -486,7 +486,7 @@ $hasSqlToFrom = hasRealSql($sqlToFrom);
                         }
                     ?>
 
-                    <tr class="<?= $diff ? 'bg-red-50' : '' ?>">
+                    <tr class="<?= $diff ? 'bg-red-100' : '' ?>">
                         <td class="px-4 py-2 font-medium">
                             <i class="fas fa-table text-slate-500 mr-1"></i> <?= htmlspecialchars($colName) ?>
                         </td>

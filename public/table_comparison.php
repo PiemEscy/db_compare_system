@@ -161,6 +161,33 @@ if ($selectedId) {
 
         <?php if ($selectedId && !$error): ?>
 
+        <!-- Documentation Buttons -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                    <div class="text-sm text-slate-700 font-medium">Documentation / Report</div>
+                    <div class="text-xs text-slate-500">
+                        Generate full table + structure comparison report
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <a target="_blank"
+                    href="document_commands.php?pair_id=<?= $selectedId ?>&direction=to_from"
+                    class="rounded-xl bg-purple-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-purple-500 transition shadow-sm">
+                        🧾 Document (<?= $pair['db_to_name'].' → '.$pair['db_from_name']?>)
+                    </a>
+
+                    <a target="_blank"
+                    href="document_commands.php?pair_id=<?= $selectedId ?>&direction=from_to"
+                    class="rounded-xl bg-green-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-green-500 transition shadow-sm">
+                        🧾 Document (<?= $pair['db_from_name'].' → '.$pair['db_to_name']?>)
+                    </a>
+                </div>
+            </div>
+        </div>
+
+
             <!-- Summary Cards -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 
@@ -174,7 +201,7 @@ if ($selectedId) {
                 <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
                     <div>
                         <div class="text-sm text-slate-700">
-                            Missing in DB From
+                            Missing Tables in
                             <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-medium">
                                 <?= htmlspecialchars($pair['db_from_name']) ?>
                             </span>
@@ -194,7 +221,7 @@ if ($selectedId) {
                 <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
                     <div>
                         <div class="text-sm text-slate-700">
-                            Missing in DB To
+                            Missing Tables in
                             <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-medium">
                                 <?= htmlspecialchars($pair['db_to_name']) ?>
                             </span>
@@ -246,10 +273,8 @@ if ($selectedId) {
                     <div class="px-6 py-4 border-b border-slate-200">
                         <div class="text-xl font-semibold text-slate-900 flex items-center gap-1">
                             <i class="fas fa-exclamation-triangle text-yellow-500"></i>
-                            Missing in DB From
-                            <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-medium">
-                                <?= htmlspecialchars($pair['db_from_name']) ?>
-                            </span>
+                            Missing Tables in <?= htmlspecialchars($pair['db_from_name']) ?>
+
                         </div>
                         <p class="text-sm text-slate-700">
                             Exists in 
@@ -280,10 +305,7 @@ if ($selectedId) {
                     <div class="px-6 py-4 border-b border-slate-200">
                         <div class="text-xl font-semibold text-slate-900 flex items-center gap-1">
                             <i class="fas fa-exclamation-triangle text-red-500"></i>
-                            Missing in DB To
-                            <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-medium">
-                                <?= htmlspecialchars($pair['db_to_name']) ?>
-                            </span>
+                            Missing Tables in <?= htmlspecialchars($pair['db_to_name']) ?>
                         </div>
                         <p class="text-sm text-slate-700">Exists in 
                             <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-medium rounded mx-1">

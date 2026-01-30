@@ -5,9 +5,9 @@ SELECT
     l.IS_NULLABLE    AS logistikus_nullable,
     l.COLUMN_DEFAULT AS logistikus_default,
     -- Asciiuat
-    a.COLUMN_TYPE    AS brm_type,
-    a.IS_NULLABLE    AS brm_nullable,
-    a.COLUMN_DEFAULT AS brm_default,
+    a.COLUMN_TYPE    AS asciiuat_type,
+    a.IS_NULLABLE    AS asciiuat_nullable,
+    a.COLUMN_DEFAULT AS asciiuat_default,
     -- Difference flag
     CASE
         WHEN a.COLUMN_NAME IS NULL
@@ -20,7 +20,7 @@ SELECT
     END AS has_difference,
     -- Difference type
     CASE
-        WHEN l.COLUMN_NAME IS NULL THEN 'only_in_brm'
+        WHEN l.COLUMN_NAME IS NULL THEN 'only_in_asciiuat'
         WHEN a.COLUMN_NAME IS NULL THEN 'only_in_logistikus'
         WHEN l.COLUMN_TYPE <> a.COLUMN_TYPE 
           AND l.IS_NULLABLE <> a.IS_NULLABLE 
@@ -33,10 +33,10 @@ SELECT
 FROM INFORMATION_SCHEMA.COLUMNS l
 LEFT JOIN INFORMATION_SCHEMA.COLUMNS a
     ON l.COLUMN_NAME = a.COLUMN_NAME
-    AND a.TABLE_SCHEMA = 'brm_si'
-    AND a.TABLE_NAME = 'si_cash_hdr'
+    AND a.TABLE_SCHEMA = 'asciiuat_si'
+    AND a.TABLE_NAME = 'si_invoice_hdr'
 WHERE l.TABLE_SCHEMA = 'logistikus_si'
-  AND l.TABLE_NAME = 'si_cash_hdr'
+  AND l.TABLE_NAME = 'si_invoice_hdr'
 
 UNION ALL
 
@@ -47,9 +47,9 @@ SELECT
     l.IS_NULLABLE    AS logistikus_nullable,
     l.COLUMN_DEFAULT AS logistikus_default,
     -- Asciiuat
-    a.COLUMN_TYPE    AS brm_type,
-    a.IS_NULLABLE    AS brm_nullable,
-    a.COLUMN_DEFAULT AS brm_default,
+    a.COLUMN_TYPE    AS asciiuat_type,
+    a.IS_NULLABLE    AS asciiuat_nullable,
+    a.COLUMN_DEFAULT AS asciiuat_default,
     -- Difference flag
     'YES' AS has_difference,
     'only_in_asciiuat' AS difference_type  -- column exists only in asciiuat
@@ -57,9 +57,9 @@ FROM INFORMATION_SCHEMA.COLUMNS a
 LEFT JOIN INFORMATION_SCHEMA.COLUMNS l
     ON a.COLUMN_NAME = l.COLUMN_NAME
     AND l.TABLE_SCHEMA = 'logistikus_si'
-    AND l.TABLE_NAME = 'si_cash_hdr'
-WHERE a.TABLE_SCHEMA = 'brm_si'
-  AND a.TABLE_NAME = 'si_cash_hdr'
+    AND l.TABLE_NAME = 'si_invoice_hdr'
+WHERE a.TABLE_SCHEMA = 'asciiuat_si'
+  AND a.TABLE_NAME = 'si_invoice_hdr'
   AND l.COLUMN_NAME IS NULL
 
 ORDER BY column_name;
