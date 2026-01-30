@@ -103,6 +103,7 @@ function getForeignKeys(PDO $pdo, $dbName, $tableName) {
     $fks = [];
     foreach($stmt->fetchAll() as $row){
         $fks[$row['CONSTRAINT_NAME']][] = [
+            'constraint' => $row['CONSTRAINT_NAME'],
             'column' => $row['COLUMN_NAME'],
             'ref_db' => $row['REFERENCED_TABLE_SCHEMA'],
             'ref_table' => $row['REFERENCED_TABLE_NAME'],
@@ -141,36 +142,87 @@ foreach ($allColumns as $col) {
     ];
 }
 
-// Generate SQL commands
-function generateAlterSQL($comparison, $table, $fromName, $toName, $pkFrom, $pkTo, $uniqueFrom, $uniqueTo, $fkFrom, $fkTo) {
+function normalizeFkSignature($fkCols) {
+    // Sort by column name so order won't affect comparison
+    usort($fkCols, function($a, $b){
+        return strcmp($a['column'], $b['column']);
+    });
+
+    $parts = [];
+    foreach ($fkCols as $fk) {
+        $parts[] =
+            ($fk['column'] ?? '') . '->' .
+            // ($fk['ref_db'] ?? '') . '.' .
+            ($fk['ref_table'] ?? '') . '(' .
+            ($fk['ref_column'] ?? '') . ')';
+    }
+
+    return implode('|', $parts);
+}
+
+function generateAlterSQL(
+    $comparison,
+    $table,
+    $fromName,
+    $toName,
+    $pkFrom,
+    $pkTo,
+    $uniqueFrom,
+    $uniqueTo,
+    $fkFrom,
+    $fkTo
+) {
     $sqls = [];
 
     $sqls[] = "-- Command to sync table `$table` from `$fromName` → `$toName`";
-    // Columns
+
+    /**
+     * ============================================================
+     * 1) COLUMNS: Add missing columns + modify different columns
+     * ============================================================
+     */
     foreach ($comparison as $colName => $cols) {
         $src = $cols['from'] ?? null;
         $dst = $cols['to'] ?? null;
 
+        // If source column doesn't exist, nothing to copy to target
         if (!$src) continue;
 
+        // ADD COLUMN if missing in target
         if (!$dst) {
-            $sqls[] = "ALTER TABLE `$toName`.`$table` ADD COLUMN `{$src['COLUMN_NAME']}` {$src['COLUMN_TYPE']} "
-                      . ($src['IS_NULLABLE']=='NO'?'NOT NULL':'NULL')
-                      . ($src['COLUMN_DEFAULT']!==null ? " DEFAULT '{$src['COLUMN_DEFAULT']}'":"")
-                      . ($src['EXTRA'] ? " {$src['EXTRA']}" : "")
-                      . ";";
-        } elseif ($dst && ($src['COLUMN_TYPE'] != $dst['COLUMN_TYPE'] 
-                          || $src['IS_NULLABLE'] != $dst['IS_NULLABLE'] 
-                          || ($src['COLUMN_DEFAULT']??'') != ($dst['COLUMN_DEFAULT']??''))) {
-            $sqls[] = "ALTER TABLE `$toName`.`$table` MODIFY COLUMN `{$src['COLUMN_NAME']}` {$src['COLUMN_TYPE']} "
-                      . ($src['IS_NULLABLE']=='NO'?'NOT NULL':'NULL')
-                      . ($src['COLUMN_DEFAULT']!==null ? " DEFAULT '{$src['COLUMN_DEFAULT']}'":"")
-                      . ($src['EXTRA'] ? " {$src['EXTRA']}" : "")
-                      . ";";
+            $sqls[] =
+                "ALTER TABLE `$toName`.`$table` ADD COLUMN `{$src['COLUMN_NAME']}` {$src['COLUMN_TYPE']} " .
+                ($src['IS_NULLABLE'] == 'NO' ? 'NOT NULL' : 'NULL') .
+                ($src['COLUMN_DEFAULT'] !== null ? " DEFAULT " . $GLOBALS['conn']->quote($src['COLUMN_DEFAULT']) : "") .
+                ($src['EXTRA'] ? " {$src['EXTRA']}" : "") .
+                ";";
+            continue;
+        }
+
+        // MODIFY COLUMN if different
+        $srcDefault = $src['COLUMN_DEFAULT'] ?? '';
+        $dstDefault = $dst['COLUMN_DEFAULT'] ?? '';
+
+        if (
+            $src['COLUMN_TYPE'] != $dst['COLUMN_TYPE'] ||
+            $src['IS_NULLABLE'] != $dst['IS_NULLABLE'] ||
+            $srcDefault != $dstDefault ||
+            ($src['EXTRA'] ?? '') != ($dst['EXTRA'] ?? '')
+        ) {
+            $sqls[] =
+                "ALTER TABLE `$toName`.`$table` MODIFY COLUMN `{$src['COLUMN_NAME']}` {$src['COLUMN_TYPE']} " .
+                ($src['IS_NULLABLE'] == 'NO' ? 'NOT NULL' : 'NULL') .
+                ($src['COLUMN_DEFAULT'] !== null ? " DEFAULT " . $GLOBALS['conn']->quote($src['COLUMN_DEFAULT']) : "") .
+                ($src['EXTRA'] ? " {$src['EXTRA']}" : "") .
+                ";";
         }
     }
 
-    // Primary Key
+    /**
+     * ============================================================
+     * 2) PRIMARY KEY: drop + add if different
+     * ============================================================
+     */
     if ($pkFrom != $pkTo) {
         if (!empty($pkTo)) {
             $sqls[] = "ALTER TABLE `$toName`.`$table` DROP PRIMARY KEY;";
@@ -181,31 +233,90 @@ function generateAlterSQL($comparison, $table, $fromName, $toName, $pkFrom, $pkT
         }
     }
 
-    // Unique Keys
-    foreach($uniqueFrom as $name => $cols) {
+    /**
+     * ============================================================
+     * 3) UNIQUE KEYS: add missing, drop extra, recreate if different
+     * ============================================================
+     */
+    // Add missing unique keys
+    foreach ($uniqueFrom as $name => $cols) {
         if (!isset($uniqueTo[$name])) {
             $colsStr = implode('`,`', $cols);
             $sqls[] = "ALTER TABLE `$toName`.`$table` ADD UNIQUE `$name` (`$colsStr`);";
+        } else {
+            // If same name exists but different columns → recreate
+            if ($uniqueFrom[$name] != $uniqueTo[$name]) {
+                $sqls[] = "ALTER TABLE `$toName`.`$table` DROP INDEX `$name`;";
+                $colsStr = implode('`,`', $uniqueFrom[$name]);
+                $sqls[] = "ALTER TABLE `$toName`.`$table` ADD UNIQUE `$name` (`$colsStr`);";
+            }
         }
     }
 
-    // Foreign Keys
-    foreach($fkFrom as $name => $fkCols) {
-        if (!isset($fkTo[$name])) {
+    // Drop extra unique keys that exist in target but not in source
+    foreach ($uniqueTo as $name => $cols) {
+        if (!isset($uniqueFrom[$name])) {
+            $sqls[] = "ALTER TABLE `$toName`.`$table` DROP INDEX `$name`;";
+        }
+    }
+
+    /**
+     * ============================================================
+     * 4) FOREIGN KEYS:
+     *    - add missing
+     *    - drop extra
+     *    - recreate if different
+     * ============================================================
+     */
+    // Build normalized signatures for comparison
+    $fkFromSig = [];
+    foreach ($fkFrom as $name => $fkCols) {
+        $fkFromSig[$name] = normalizeFkSignature($fkCols);
+    }
+
+    $fkToSig = [];
+    foreach ($fkTo as $name => $fkCols) {
+        $fkToSig[$name] = normalizeFkSignature($fkCols);
+    }
+
+    // Add or recreate missing/different FKs
+    foreach ($fkFrom as $name => $fkCols) {
+
+        $needsAdd = !isset($fkTo[$name]);
+        $needsRecreate = isset($fkTo[$name]) && ($fkFromSig[$name] !== $fkToSig[$name]);
+
+        if ($needsRecreate) {
+            $sqls[] = "ALTER TABLE `$toName`.`$table` DROP FOREIGN KEY `$name`;";
+        }
+
+        if ($needsAdd || $needsRecreate) {
             $columns = [];
             $refColumns = [];
-            $refDb = $fkCols[0]['ref_db'] ?? $toName; // use first FK's DB
-            $refTable = $fkCols[0]['ref_table'] ?? $table;
-            foreach($fkCols as $fk) {
+
+            $refDb = $fkCols[0]['ref_db'] ?? $fromName; // reference should follow source FK
+            $refTable = $fkCols[0]['ref_table'] ?? null;
+
+            foreach ($fkCols as $fk) {
                 $columns[] = "`{$fk['column']}`";
                 $refColumns[] = "`{$fk['ref_column']}`";
             }
+
             $colsStr = implode(',', $columns);
             $refColsStr = implode(',', $refColumns);
-            $sqls[] = "ALTER TABLE `$toName`.`$table` ADD CONSTRAINT `$name` FOREIGN KEY ($colsStr) REFERENCES `$refDb`.`$refTable`($refColsStr);";
+
+            $sqls[] =
+                "ALTER TABLE `$toName`.`$table` " .
+                "ADD CONSTRAINT `$name` FOREIGN KEY ($colsStr) " .
+                "REFERENCES `$refDb`.`$refTable`($refColsStr);";
         }
     }
 
+    // Drop extra FKs that exist in target but not in source
+    foreach ($fkTo as $name => $fkCols) {
+        if (!isset($fkFrom[$name])) {
+            $sqls[] = "ALTER TABLE `$toName`.`$table` DROP FOREIGN KEY `$name`;";
+        }
+    }
 
     return implode("\n", $sqls);
 }
@@ -273,28 +384,6 @@ $hasSqlToFrom = hasRealSql($sqlToFrom);
 
     <!-- SQL Commands -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- FROM → TO -->
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-            <div class="flex items-center justify-between mb-2">
-                <h2 class="font-semibold text-sm flex items-center gap-1">
-                    <i class="fas fa-arrow-right text-green-500"></i> SQL: From → To (<?= $pair['db_from_name'] ?> → <?= $pair['db_to_name'] ?>)
-                </h2>
-                <div class="flex gap-2">
-                    <?php if($hasSqlFromTo): ?>
-                        <button class="copy-btn text-xs text-slate-700 hover:text-slate-900" data-target="sqlFromTo">
-                            <i class="fas fa-copy"></i> Copy
-                        </button>
-                        <button class="run-btn text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-500"
-                            data-direction="from_to" data-target="sqlFromTo">
-                            Run
-                        </button>
-                    <?php else: ?>
-                        <span class="text-xs text-slate-400 italic">No changes</span>
-                    <?php endif; ?>
-                </div>
-            </div>
-            <pre id="sqlFromTo" class="text-xs font-mono bg-slate-100 p-2 rounded max-h-72 overflow-auto"><?= htmlspecialchars($sqlFromTo) ?></pre>
-        </div>
 
         <!-- TO → FROM -->
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
@@ -317,6 +406,29 @@ $hasSqlToFrom = hasRealSql($sqlToFrom);
                 </div>
             </div>
             <pre id="sqlToFrom" class="text-xs font-mono bg-slate-100 p-2 rounded max-h-72 overflow-auto"><?= htmlspecialchars($sqlToFrom) ?></pre>
+        </div>
+
+        <!-- FROM → TO -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+            <div class="flex items-center justify-between mb-2">
+                <h2 class="font-semibold text-sm flex items-center gap-1">
+                    <i class="fas fa-arrow-right text-green-500"></i> SQL: From → To (<?= $pair['db_from_name'] ?> → <?= $pair['db_to_name'] ?>)
+                </h2>
+                <div class="flex gap-2">
+                    <?php if($hasSqlFromTo): ?>
+                        <button class="copy-btn text-xs text-slate-700 hover:text-slate-900" data-target="sqlFromTo">
+                            <i class="fas fa-copy"></i> Copy
+                        </button>
+                        <button class="run-btn text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-500"
+                            data-direction="from_to" data-target="sqlFromTo">
+                            Run
+                        </button>
+                    <?php else: ?>
+                        <span class="text-xs text-slate-400 italic">No changes</span>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <pre id="sqlFromTo" class="text-xs font-mono bg-slate-100 p-2 rounded max-h-72 overflow-auto"><?= htmlspecialchars($sqlFromTo) ?></pre>
         </div>
 
     </div>
@@ -402,7 +514,7 @@ $hasSqlToFrom = hasRealSql($sqlToFrom);
                                 <?php foreach($fkFrom as $name => $fkCols) {
                                     foreach($fkCols as $fk)
                                         if ($fk['column']==$colName)
-                                            echo '<span class="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 font-mono">FK → '.$fk['ref_table'].'('.$fk['ref_column'].')</span>';
+                                            echo '<span class="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 font-mono">FK → '.$fk['ref_table'].'('.$fk['ref_column'].'): '.$fk['constraint'].'</span>';
                                 } ?>
                             </div>
                         </td>
@@ -430,7 +542,7 @@ $hasSqlToFrom = hasRealSql($sqlToFrom);
                                 <?php foreach($fkTo as $name => $fkCols) {
                                     foreach($fkCols as $fk)
                                         if ($fk['column']==$colName)
-                                            echo '<span class="px-2 py-0.5 rounded-full bg-purple-50 text-purple-800 font-mono">FK → '.$fk['ref_table'].'('.$fk['ref_column'].')</span>';
+                                            echo '<span class="px-2 py-0.5 rounded-full bg-purple-50 text-purple-800 font-mono">FK → '.$fk['ref_table'].'('.$fk['ref_column'].'): '.$fk['constraint'].'</span>';
                                 } ?>
                             </div>
                         </td>

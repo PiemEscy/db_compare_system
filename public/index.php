@@ -128,23 +128,23 @@ $result = $conn->query("SELECT * FROM db_connections ORDER BY id DESC");
 
         <!-- Add Connection Form -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-                <div>
-                    <h2 class="text-lg font-semibold">Add Database Connection</h2>
-                    <p class="text-sm text-slate-500">
-                        Save a pair of databases you want to compare.
-                    </p>
+            <form method="POST" id="add-connection-form" class="p-6 space-y-6">
+                <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold">Add Database Connection</h2>
+                        <p class="text-sm text-slate-500">
+                            Save a pair of databases you want to compare.
+                        </p>
+                    </div>
+
+                    <!-- Submit button moved here -->
+                    <button type="submit" name="add_connection"
+                        form="add-connection-form"
+                        class="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-slate-800 transition shadow-sm">
+                        + Add Connection
+                    </button>
                 </div>
 
-                <!-- Submit button moved here -->
-                <button type="submit" name="add_connection"
-                    form="add-connection-form"
-                    class="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-slate-800 transition shadow-sm">
-                    + Add Connection
-                </button>
-            </div>
-
-            <form method="POST" class="p-6 space-y-6">
                 <!-- Label -->
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">
