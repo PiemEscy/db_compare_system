@@ -10,7 +10,7 @@ $dbPassword = $_ENV['DB_PASSWORD'] ?? '';
 
 $dsn = "mysql:host={$dbHost};port={$dbPort};dbname={$dbDatabase};charset=utf8mb4";
 
-try {
+try { 
     $conn = new PDO($dsn, $dbUsername, $dbPassword, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -255,15 +255,62 @@ if ($selectedId) {
                         <?php if (count($commonTables) === 0): ?>
                             <div class="text-sm text-slate-700">No common tables found.</div>
                         <?php else: ?>
-                            <?php foreach ($commonTables as $t): ?>
-                                <div class="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-2 text-sm">
-                                    <span class="font-medium"><i class="fas fa-table text-slate-600 mr-1"></i> <?= htmlspecialchars($t) ?></span>
-                                    <a href="structure_comparison.php?pair_id=<?= $selectedId ?>&table=<?= urlencode($t) ?>"
-                                    class="text-slate-700 hover:text-slate-900 text-xs flex items-center gap-1">
-                                        <i class="fas fa-code-branch"></i> <span class="underline"> Compare Structure</span>
-                                    </a>
-                                </div>
-                            <?php endforeach; ?>
+                        <form method="GET" action="structure_batch_comparison.php" target="_blank">
+                            <input type="hidden" name="pair_id" value="<?= htmlspecialchars($selectedId) ?>">
+                            <!-- Tables List -->
+                            <div class="space-y-2">
+                                <?php if (count($commonTables) === 0): ?>
+                                    <div class="text-sm text-slate-700">No common tables found.</div>
+                                <?php else: ?>
+
+                                    <?php foreach ($commonTables as $t): ?>
+                                        <label class="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-2 text-sm cursor-pointer hover:bg-slate-50">
+                                            <div class="flex items-center gap-2">
+                                                <!-- AUTO CHECKED -->
+                                                <input type="checkbox" name="tables[]" value="<?= htmlspecialchars($t) ?>"
+                                                    checked
+                                                    class="h-4 w-4 rounded border-slate-300 hidden">
+
+                                                <span class="font-medium">
+                                                    <i class="fas fa-table text-slate-600 mr-1"></i>
+                                                    <?= htmlspecialchars($t) ?>
+                                                </span>
+                                            </div>
+
+                                            <!-- Single Compare -->
+                                            <a href="structure_comparison.php?pair_id=<?= $selectedId ?>&table=<?= urlencode($t) ?>"
+                                                class="text-slate-700 hover:text-slate-900 text-xs flex items-center gap-1"
+                                                onclick="event.stopPropagation();">
+                                                <i class="fas fa-code-branch"></i>
+                                                <span class="underline">Compare</span>
+                                            </a>
+                                        </label>
+                                    <?php endforeach; ?>
+
+                                <?php endif; ?>
+                            </div>
+
+                            <!-- Batch Action Bar (Sticky) -->
+                        <div class="flex items-center justify-end gap-2 mt-2">
+                            <button type="submit"
+                                class="text-slate-700 hover:text-slate-900 text-xs flex items-center gap-1">
+                                <i class="fas fa-code-branch"></i>
+                                <span class="underline">Compare All Tables</span>
+                            </button>
+                        </div>
+
+
+                        </form>
+
+
+                        <script>
+                        document.getElementById('select-all-btn')?.addEventListener('click', () => {
+                            const checkboxes = document.querySelectorAll('input[name="tables[]"]');
+                            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+                            checkboxes.forEach(cb => cb.checked = !allChecked);
+                        });
+                        </script>
+
                         <?php endif; ?>
                     </div>
                 </div>

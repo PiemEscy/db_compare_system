@@ -439,9 +439,9 @@ $hasSqlToFrom = hasRealSql($sqlToFrom);
         <table class="min-w-full divide-y divide-slate-200 text-sm">
             <thead class="bg-slate-100">
                 <tr>
-                    <th class="px-4 py-2 text-left">Column</th>
-                    <th class="px-4 py-2 text-left">DB From (<?= htmlspecialchars($pair['db_from_name']) ?>)</th>
-                    <th class="px-4 py-2 text-left">DB To (<?= htmlspecialchars($pair['db_to_name']) ?>)</th>
+                    <th class="px-4 py-1 text-left w-[20%]">Column</th>
+                    <th class="px-4 py-1 text-left w-[40%]">DB From (<?= htmlspecialchars($pair['db_from_name']) ?>)</th>
+                    <th class="px-4 py-1 text-left w-[40%]">DB To (<?= htmlspecialchars($pair['db_to_name']) ?>)</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-200">
@@ -486,20 +486,20 @@ $hasSqlToFrom = hasRealSql($sqlToFrom);
                         }
                     ?>
 
-                    <tr class="<?= $diff ? 'bg-red-100' : '' ?>">
-                        <td class="px-4 py-2 font-medium">
+                    <tr class="<?= $diff ? 'bg-red-100 text-red-900' : '' ?>">
+                        <td class="px-4 py-1 font-medium">
                             <i class="fas fa-table text-slate-500 mr-1"></i> <?= htmlspecialchars($colName) ?>
                         </td>
 
                         <!-- FROM DB -->
-                        <td class="px-4 py-2 font-mono text-xs">
+                        <td class="px-4 py-1 font-mono text-xs">
                             <?php if(isset($cols['from'])): ?>
                                 <?= "{$cols['from']['COLUMN_TYPE']} "
                                     . ($cols['from']['IS_NULLABLE']=='NO' ? 'NOT NULL' : 'NULL')
                                     . (isset($cols['from']['COLUMN_DEFAULT']) ? " DEFAULT '{$cols['from']['COLUMN_DEFAULT']}'" : '') 
                                 ?>
                             <?php else: ?>
-                                <span class="text-slate-400">—</span>
+                                <span class="text-red-900">**Column not found**</span>
                             <?php endif; ?>
 
                             <!-- FROM badges -->
@@ -520,14 +520,14 @@ $hasSqlToFrom = hasRealSql($sqlToFrom);
                         </td>
 
                         <!-- TO DB -->
-                        <td class="px-4 py-2 font-mono text-xs">
+                        <td class="px-4 py-1 font-mono text-xs">
                             <?php if(isset($cols['to'])): ?>
                                 <?= "{$cols['to']['COLUMN_TYPE']} "
                                     . ($cols['to']['IS_NULLABLE']=='NO' ? 'NOT NULL' : 'NULL')
                                     . (isset($cols['to']['COLUMN_DEFAULT']) ? " DEFAULT '{$cols['to']['COLUMN_DEFAULT']}'" : '') 
                                 ?>
                             <?php else: ?>
-                                <span class="text-slate-400">—</span>
+                                <span class="text-red-900">**Column not found**</span>
                             <?php endif; ?>
 
                             <!-- TO badges -->

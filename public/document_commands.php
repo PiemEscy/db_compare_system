@@ -478,9 +478,10 @@ $directionLabel = $direction === 'from_to'
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document Commands - <?= htmlspecialchars($directionLabel) ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 <body class="bg-slate-50 text-slate-900">
-<div class="max-w-6xl mx-auto p-6">
+<div class="max-w-7xl mx-auto px-6 py-8 space-y-6">
 
     <div class="flex items-start justify-between gap-4">
         <div>
@@ -500,6 +501,10 @@ $directionLabel = $direction === 'from_to'
                     class="rounded-xl bg-slate-700 text-white px-4 py-2 text-xs font-medium hover:bg-slate-600 shadow-sm">
                 Go to SQL
             </button>
+            <a href="table_comparison.php?pair_id=<?= $pair_id ?>"
+               class="no-print inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 transition">
+                <i class="fas fa-arrow-left"></i> Back
+            </a>
         </div>
     </div>
 
@@ -512,17 +517,17 @@ $directionLabel = $direction === 'from_to'
 
         <div class="bg-white rounded-2xl p-4 shadow-sm border">
             <div class="text-xs text-slate-500">Missing tables in <?= $pair['db_from_name'] ?></div>
-            <div class="text-2xl font-bold text-purple-600"><?= $missingTablesCount ?></div>
+            <div class="text-2xl font-bold text-red-600"><?= $missingTablesCount ?></div>
         </div>
 
         <div class="bg-white rounded-2xl p-4 shadow-sm border">
             <div class="text-xs text-slate-500">Tables for update in <?= $pair['db_from_name'] ?></div>
-            <div class="text-2xl font-bold text-emerald-600"><?= $tablesChanged ?></div>
+            <div class="text-2xl font-bold text-red-600"><?= $tablesChanged ?></div>
         </div>
 
         <div class="bg-white rounded-2xl p-4 shadow-sm border">
             <div class="text-xs text-slate-500">No table changes in <?= $pair['db_from_name'] ?></div>
-            <div class="text-2xl font-bold text-slate-500"><?= $tablesNoChanges ?></div>
+            <div class="text-2xl font-bold text-emerald-500"><?= $tablesNoChanges ?></div>
         </div>
 
         <!-- <div class="bg-white rounded-2xl p-4 shadow-sm border">
@@ -557,13 +562,9 @@ $directionLabel = $direction === 'from_to'
                         <td class="px-4 py-3 font-medium"><?= htmlspecialchars($row['table']) ?></td>
                         <td class="px-4 py-3 text-center">
                             <?php if ($row['changed']): ?>
-                                <span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-3 py-1 text-xs font-semibold">
-                                    CHANGED
-                                </span>
+                                <span class="px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-medium">Different</span>
                             <?php else: ?>
-                                <span class="inline-flex items-center rounded-full bg-slate-100 text-slate-600 px-3 py-1 text-xs font-semibold">
-                                    NO CHANGES
-                                </span>
+                                <span class="px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">Same</span>
                             <?php endif; ?>
                         </td>
                         <td class="px-4 py-3 text-center"><?= (int)$row['column_changes'] ?></td>
