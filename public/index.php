@@ -2,96 +2,9 @@
 
 require_once __DIR__ . '/../bootstrap.php';
 
-$dbHost = $_ENV['DB_HOST'] ?? null;
-$dbPort = $_ENV['DB_PORT'] ?? null;
-$dbDatabase = $_ENV['DB_DATABASE'] ?? null;
-$dbUsername = $_ENV['DB_USERNAME'] ?? null;
-$dbPassword = $_ENV['DB_PASSWORD'] ?? null;
+$data = DashboardController::handle();
+extract($data);
 
-$dsn = sprintf(
-    "mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4",
-    $dbHost,
-    $dbPort,
-    $dbDatabase
-);
-
-try {
-    $conn = new PDO($dsn, $dbUsername, $dbPassword, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    ]);
-} catch (PDOException $e) {
-    die("Connection failed: " . $e->getMessage());
-}
-
-
-    // ADD NEW CONNECTION
-    if (isset($_POST['add_connection'])) {
-
-        $sql = "INSERT INTO db_connections
-            (label,
-            db_from_host, db_from_port, db_from_name, db_from_user, db_from_pass,
-            db_to_host, db_to_port, db_to_name, db_to_user, db_to_pass)
-            VALUES
-            (:label,
-            :db_from_host, :db_from_port, :db_from_name, :db_from_user, :db_from_pass,
-            :db_to_host, :db_to_port, :db_to_name, :db_to_user, :db_to_pass)";
-
-        $stmt = $conn->prepare($sql);
-
-        $stmt->execute([
-            ':label' => $_POST['label'] ?? null,
-
-            ':db_from_host' => $_POST['db_from_host'],
-            ':db_from_port' => $_POST['db_from_port'] ?? 3306,
-            ':db_from_name' => $_POST['db_from_name'],
-            ':db_from_user' => $_POST['db_from_user'],
-            ':db_from_pass' => $_POST['db_from_pass'] ?? null,
-
-            ':db_to_host' => $_POST['db_to_host'],
-            ':db_to_port' => $_POST['db_to_port'] ?? 3306,
-            ':db_to_name' => $_POST['db_to_name'],
-            ':db_to_user' => $_POST['db_to_user'],
-            ':db_to_pass' => $_POST['db_to_pass'] ?? null,
-        ]);
-
-        header("Location: index.php?success=added");
-        exit;
-    }
-
-    // DELETE CONNECTION
-    if (isset($_GET['delete_id'])) {
-        $stmt = $conn->prepare("DELETE FROM db_connections WHERE id = ?");
-        $stmt->execute([(int) $_GET['delete_id']]);
-
-        header("Location: index.php?success=deleted");
-        exit;
-    }
-
-// Return messages for toast
-$toastMessage = null;
-$toastType = 'success';
-
-if (isset($_GET['success'])) {
-    switch ($_GET['success']) {
-        case 'added':
-            $toastMessage = "Database connection added successfully!";
-            $toastType = 'success';
-            break;
-        case 'deleted':
-            $toastMessage = "Database connection deleted successfully!";
-            $toastType = 'success';
-            break;
-        case 'error':
-            $toastMessage = $_GET['msg'] ?? "An error occurred!";
-            $toastType = 'error';
-            break;
-    }
-}
-
-
-// FETCH CONNECTIONS
-$result = $conn->query("SELECT * FROM db_connections ORDER BY id DESC");
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -257,14 +170,14 @@ $result = $conn->query("SELECT * FROM db_connections ORDER BY id DESC");
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200">
-                        <?php if ($result->rowCount() === 0): ?>
+                        <?php if (count($dbPairs) === 0): ?>
                             <tr>
                                 <td colspan="5" class="px-6 py-6 text-center text-slate-500">
                                     No saved connections yet. Add one above.
                                 </td>
                             </tr>
                         <?php else: ?>
-                            <?php while($row = $result->fetch(PDO::FETCH_ASSOC)): ?>
+                            <?php foreach($dbPairs as $row): ?>
                                 <tr class="hover:bg-slate-50 transition">
                                     <td class="px-6 py-4"><?= $row['id'] ?></td>
                                     <td class="px-6 py-4 font-medium">
@@ -286,7 +199,7 @@ $result = $conn->query("SELECT * FROM db_connections ORDER BY id DESC");
                                         </a>
                                     </td>
                                 </tr>
-                            <?php endwhile; ?>
+                            <?php endforeach; ?>
                         <?php endif; ?>
                     </tbody>
                 </table>
