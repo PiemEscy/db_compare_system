@@ -181,11 +181,36 @@ function generateAlterSQL(
 
         // ADD COLUMN
         if (!$dst) {
+            $defaultSql = '';
+
+            if ($src['COLUMN_DEFAULT'] !== null) {
+
+                $upper = strtoupper($src['COLUMN_DEFAULT']);
+
+                if ($upper === 'CURRENT_TIMESTAMP' || $upper === 'CURRENT_TIMESTAMP()') {
+                    $defaultSql = " DEFAULT CURRENT_TIMESTAMP";
+                } else {
+                    $defaultSql = " DEFAULT " . $GLOBALS['conn']->quote($src['COLUMN_DEFAULT']);
+                }
+            }
+
+            $extraSql = '';
+
+            if (!empty($src['EXTRA'])) {
+
+                $extra = $src['EXTRA'];
+
+                // Remove MySQL 8 metadata
+                $extra = str_ireplace('DEFAULT_GENERATED', '', $extra);
+
+                $extraSql = ' ' . trim($extra);
+            }
+
             $sqls[] =
                 "ALTER TABLE `$toName`.`$table` ADD COLUMN `{$src['COLUMN_NAME']}` {$src['COLUMN_TYPE']} " .
                 ($src['IS_NULLABLE'] == 'NO' ? 'NOT NULL' : 'NULL') .
-                ($src['COLUMN_DEFAULT'] !== null ? " DEFAULT " . $GLOBALS['conn']->quote($src['COLUMN_DEFAULT']) : "") .
-                ($src['EXTRA'] ? " {$src['EXTRA']}" : "") .
+                $defaultSql .
+                $extraSql .
                 ";";
 
             $tableStats['column_changes']++;
@@ -202,11 +227,36 @@ function generateAlterSQL(
             $srcDefault != $dstDefault ||
             ($src['EXTRA'] ?? '') != ($dst['EXTRA'] ?? '')
         ) {
+
+            $defaultSql = '';
+            if ($src['COLUMN_DEFAULT'] !== null) {
+
+                $upper = strtoupper($src['COLUMN_DEFAULT']);
+
+                if ($upper === 'CURRENT_TIMESTAMP' || $upper === 'CURRENT_TIMESTAMP()') {
+                    $defaultSql = " DEFAULT CURRENT_TIMESTAMP";
+                } else {
+                    $defaultSql = " DEFAULT " . $GLOBALS['conn']->quote($src['COLUMN_DEFAULT']);
+                }
+            }
+
+            $extraSql = '';
+
+            if (!empty($src['EXTRA'])) {
+
+                $extra = $src['EXTRA'];
+
+                // Remove MySQL 8 metadata
+                $extra = str_ireplace('DEFAULT_GENERATED', '', $extra);
+
+                $extraSql = ' ' . trim($extra);
+            }
+            
             $sqls[] =
                 "ALTER TABLE `$toName`.`$table` MODIFY COLUMN `{$src['COLUMN_NAME']}` {$src['COLUMN_TYPE']} " .
                 ($src['IS_NULLABLE'] == 'NO' ? 'NOT NULL' : 'NULL') .
-                ($src['COLUMN_DEFAULT'] !== null ? " DEFAULT " . $GLOBALS['conn']->quote($src['COLUMN_DEFAULT']) : "") .
-                ($src['EXTRA'] ? " {$src['EXTRA']}" : "") .
+                $defaultSql .
+                $extraSql .
                 ";";
 
             $tableStats['column_changes']++;
@@ -294,7 +344,7 @@ function generateAlterSQL(
             $sqls[] =
                 "ALTER TABLE `$toName`.`$table` " .
                 "ADD CONSTRAINT `$name` FOREIGN KEY ($colsStr) " .
-                "REFERENCES `$refDb`.`$refTable`($refColsStr);";
+                "REFERENCES `$toName`.`$refTable`($refColsStr);";
 
             $tableStats['fk_changes']++;
         }
@@ -345,20 +395,29 @@ foreach ($commonTables as $table) {
     $uniqueTo = getUniqueKeys($pdoTo, $toDb, $table);
     $fkTo   = getForeignKeys($pdoTo, $toDb, $table);
 
-    // Prepare comparison
-    $allColumns = array_unique(array_merge(
-        array_column($colsFrom, 'COLUMN_NAME'),
-        array_column($colsTo, 'COLUMN_NAME')
+    // Normalize columns by lowercase key
+    $mapFrom = [];
+    foreach ($colsFrom as $col) {
+        $mapFrom[strtolower($col['COLUMN_NAME'])] = $col;
+    }
+
+    $mapTo = [];
+    foreach ($colsTo as $col) {
+        $mapTo[strtolower($col['COLUMN_NAME'])] = $col;
+    }
+
+    // Merge keys case-insensitively
+    $allKeys = array_unique(array_merge(
+        array_keys($mapFrom),
+        array_keys($mapTo)
     ));
 
     $comparison = [];
-    foreach ($allColumns as $col) {
-        $fromCol = array_values(array_filter($colsFrom, fn($c)=>$c['COLUMN_NAME']==$col));
-        $toCol   = array_values(array_filter($colsTo, fn($c)=>$c['COLUMN_NAME']==$col));
 
-        $comparison[$col] = [
-            'from' => $fromCol[0] ?? null,
-            'to'   => $toCol[0] ?? null
+    foreach ($allKeys as $key) {
+        $comparison[$key] = [
+            'from' => $mapFrom[$key] ?? null,
+            'to'   => $mapTo[$key] ?? null
         ];
     }
 
